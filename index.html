@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="src/style.css">
+<title>VibeMasto News - Keep Up With What's Happening on a Second Screen</title>
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  word-wrap: break-word;
+}
+
+#header-section, #footer-section {
+  background-color: #333;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+}
+
+#main-section {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
+.first-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  max-width: 25%;
+}
+
+.sub-section {
+  padding: 1rem;
+  border: 1px solid #ddd;
+  word-wrap: break-word;
+  flex: 1;
+  align-items: flex-start;
+}
+
+#footer-section {
+  text-align: center;
+}
+
+#mastodon-section {
+  border-top: 4px solid darkgreen;
+   padding: 0.5rem 0;
+  padding-bottom: 1rem;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#cnn-section {
+  border-top: 4px solid red;
+  border-bottom: 1px solid #ccc;
+  padding: 0.5rem 0;
+  padding-bottom: 1rem;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#mastodon-trends-section{
+border-top: 4px solid #ccc;
+  padding: 0.5rem 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 18px;
+
+}
+
+#headings {
+  font-size: 18px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: darkblue;
+  font-weight: bolder;
+  padding-top: 0.5rem; 
+  padding-bottom: 0.5rem; 
+
+}
+
+.rss-post {
+ border-top: 4px solid purple;
+   padding: 0.5rem 0;
+  padding-bottom: 1rem;
+  font-family: Arial, Helvetica, sans-serif;
+  word-break: break-word;
+   
+}
+
+.rss-post h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.rss-post small {
+  display: block;
+  margin-top: 0.5rem;
+  color: #666;
+}
+
+#date-time {
+  font-size: 24px;
+  color: #e8ebf0; /* White text */
+  background-color: #152567; /* Dark background */
+  padding: 2px;
+  font-family: Andale Mono, monospace;
+   
+}
+</style>
+  </head>
+  <body>
+<header id="header-section">
+ <div id="date-time"></div> 
+  </header>
+  
+  <main id="main-section">
+    <div class="first-column">
+<!-- Change your header if you change the feed source -->
+      <div class="sub-section" id="section1"><div id="headings">Latest from the NYT</div><div id="cnn-section">
+  
+</div>
+<!--Change your header if you change the trending tags instance -->
+<div id="headings">Trending Hashtags on Mastodon.Social</div> 
+<div id="mastodon-trends-section">
+  <!-- Mastodon trends will go here -->
+</div>
+</div>
+      <div class="sub-section" id="section2"> </div>
+    </div>
+<!-- Change your header if you change the trending links instance -->
+    <div class="sub-section" id="section3"> <div id="headings">Trending Links On Mastodon.Social</div><div id="mastodon-section"></div></div>
+    <div class="sub-section" id="section4"><div id="headings">Mastodon Tag Monitors</div> <div id="rss-section"></div>
+</div>
+  </main>
+  
+  <footer id="footer-section">
+  
+    <!-- Footer content here -->
+  </footer>
+
+<script>
+
+
+// The list below contains the Mastodon tag posts which appear in the third column. You can add as many feeds as you like but if you add too many the posts may 
+// refresh too quickly to keep up. 
+
+const rssFeeds = [
+     
+'https://mastodon.social/tags/rss.rss',
+'https://mastodon.social/tags/opensource.rss',
+'https://mastodon.social/tags/foss.rss', 
+
+];
+
+
+// Proxy because CORS errors suck
+
+const corsProxy = 'https://corsproxy.io/?';
+
+
+
+
+
+async function fetchMastodonTrends() {
+
+// The URL below populates the middle column. You can change this to another instance's trending links if you'd rather. 
+
+  const response = await fetch('https://mastodon.social/api/v1/trends/links');
+  const trends = await response.json();
+  console.log("trends",trends)
+
+  // Sort by published date in descending order
+  trends.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+
+  // Pick top 5 trending links
+  // I started by picking two which explains the variable name
+  const mostRecentTwo = trends.slice(0, 5);
+
+  // Display the posts in a custom section
+  displayMastodonTrends(mostRecentTwo); 
+}
+
+function displayMastodonTrends(trends) { 
+  const mastodonSection = document.getElementById('mastodon-section'); 
+  mastodonSection.innerHTML = '';
+  
+
+  trends.forEach((trend) => {
+    const trendDiv = document.createElement('div');
+    trendDiv.className = 'mastodon-trend';
+
+    trendDiv.innerHTML = `
+      <h3><a href="${trend.url}" target="_blank">${trend.title}</a></h3>
+      <p>${trend.description}</p>
+      <small>Published at: ${new Date(trend.published_at).toLocaleString()}</small>
+      <small>Author: <a href="${trend.author_url}" target="_blank">${trend.author_name}</a></small>
+    `;
+
+    mastodonSection.appendChild(trendDiv);
+  });
+}
+
+
+async function fetchCNNFeed() {
+// The feed below gets the RSS feed from the NYT because I decided I liked that better than CNN. You can change this
+// to any RSS feed as long it doesn't have a goofy structure.
+  const feedUrl = 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml';
+  const corsUrl = `${corsProxy}${feedUrl}`;
+  console.log("fetchURL",corsUrl)
+  const cnnPosts = [];
+
+  try {
+    const response = await fetch(corsUrl);
+
+    if (response.ok) {
+      let text = await response.text();
+      text = text.replace(/xmlns[^=]*="[^"]*"/g, ''); // Remove namespace
+
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(text, 'text/xml');
+
+      if (xmlDoc.documentElement.nodeName === 'parsererror') {
+        console.error('Error while parsing XML:', xmlDoc.documentElement.textContent);
+        return;
+      }
+
+      const items = xmlDoc.querySelectorAll('item');
+      items.forEach((item) => {
+        const title = item.querySelector('title')?.textContent || "";
+        const pubDate = new Date(item.querySelector('pubDate')?.textContent || "");
+        const description = item.querySelector('description')?.textContent || "";
+        const link = item.querySelector('link')?.textContent || "";
+
+        cnnPosts.push({ title, pubDate, description, link });
+      });
+
+       // Sort by date in descending order
+  cnnPosts.sort((a, b) => b.pubDate - a.pubDate);
+
+  // Pick top 3 posts
+  // I always start with two, enshrine it in the variable, and change my mind later. Why? Stupidness. 
+  const mostRecentTwo = cnnPosts.slice(0, 3);
+
+      // Display the posts in CNN section
+      displayCNNPosts(mostRecentTwo);
+    } else {
+      console.log(`Failed to fetch ${feedUrl}. Status: ${response.status}`);
+    }
+  } catch (error) {
+    console.log(`An error occurred while fetching ${feedUrl}: ${error}`);
+  }
+}
+
+function displayCNNPosts(posts) {
+  const cnnSection = document.getElementById('cnn-section');
+  cnnSection.innerHTML = '';
+
+  posts.forEach((post) => {
+    const postDiv = document.createElement('div');
+    postDiv.className = 'cnn-post';
+
+    postDiv.innerHTML = `
+      <h3><a href="${post.link}" target="_blank">${post.title}</a></h3>
+      <p>${post.description}</p>
+      <small>${post.pubDate.toLocaleString()}</small>
+    `;
+
+    cnnSection.appendChild(postDiv);
+  });
+}
+
+
+
+async function fetchRSSFeeds() {
+  const allPosts = [];
+
+  for (const feedUrl of rssFeeds) {
+    const corsUrl = `${corsProxy}${feedUrl}`;
+    console.log("url", corsUrl);
+
+    try {
+      const response = await fetch(corsUrl);
+
+      if (response.ok) {
+        let text = await response.text();
+
+        // Remove namespace info for the sake of easy querying
+        text = text.replace(/xmlns[^=]*="[^"]*"/g, '');
+
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, 'text/xml');
+
+        if (xmlDoc.documentElement.nodeName === 'parsererror') {
+          console.error('Error while parsing XML:', xmlDoc.documentElement.textContent);
+          return;
+        }
+
+        const items = xmlDoc.querySelectorAll('item');
+        items.forEach((item) => {
+          const title = item.querySelector('title')?.textContent || "";
+          const pubDate = new Date(item.querySelector('pubDate')?.textContent || "");
+          const description = item.querySelector('description')?.textContent || "";
+          const link = item.querySelector('link')?.textContent || "";
+
+          allPosts.push({ title, pubDate, description, link });
+        });
+      } else {
+        console.log(`Failed to fetch ${feedUrl}. Status: ${response.status}`);
+      }
+    } catch (error) {
+      console.log(`An error occurred while fetching ${feedUrl}: ${error}`);
+    }
+  }
+
+  // Display the posts
+  displayLatestPosts(allPosts);
+}
+
+
+function displayLatestPosts(posts) {
+  const rssSection = document.getElementById('rss-section');
+  rssSection.innerHTML = '';
+
+  posts.forEach((post) => {
+    const postDiv = document.createElement('div');
+    postDiv.className = 'rss-post';
+
+    postDiv.innerHTML = `
+      <h3><a href="${post.link}" target="_blank">${post.title}</a></h3>
+      <p>${post.description}</p>
+      <small>${post.pubDate.toLocaleString()}</small>
+    `;
+
+    rssSection.appendChild(postDiv);
+  });
+}
+ 
+ function fetchMastodonTags() {
+  // Clear the previous trends, if any
+  const trendsSection = document.getElementById("mastodon-trends-section");
+  trendsSection.innerHTML = "";
+
+  fetch("https://mastodon.social/api/v1/trends/tags")
+    .then(response => response.json())
+    .then(data => {
+      const topFiveTags = data.slice(0, 5);
+
+      const container = document.createElement("ul");
+      
+      topFiveTags.forEach(tag => {
+        const listItem = document.createElement("li");
+        const tagLink = document.createElement("a");
+        tagLink.href = tag.url;
+        tagLink.target = "_blank";
+        tagLink.textContent = `#${tag.name}`;
+        listItem.appendChild(tagLink);
+        container.appendChild(listItem);
+      });
+
+      trendsSection.appendChild(container);
+    })
+    .catch(error => {
+      console.error("There was a problem with the fetch operation:", error);
+    });
+}
+ 
+
+// Make a clock for the top
+function updateDateTime() {
+  const now = new Date();
+  const dateTimeString = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+  document.getElementById("date-time").textContent = dateTimeString;
+}
+
+// Call the function once to set the initial time and update it every second
+updateDateTime(); 
+setInterval(updateDateTime, 1000);
+
+
+// You can change the refresh of each item separately. 
+
+
+// The trending tags at the bottom of the first column (10 minutes) 
+fetchMastodonTags();
+setInterval(fetchMastodonTags, 600000);
+
+// The trending links in the second column (5 minutes)
+// I formatted it different from ten minutes so I could tell it at a glance
+fetchMastodonTrends()
+setInterval(fetchMastodonTrends, 5 * 60 * 1000);
+
+// The Mastodon tag monitors in the third column (5 minutes)
+fetchRSSFeeds();
+setInterval(fetchRSSFeeds, 5 * 60 * 1000);
+
+// News feed at top of first column (5 minutes) 
+fetchCNNFeed();
+setInterval(fetchCNNFeed, 5 * 60 * 1000);
+
+</script>
+
+
+  </body>
+</html>
